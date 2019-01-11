@@ -1,14 +1,14 @@
 package catalog
 
 import (
+	"fmt"
 	"net/http"
-
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/globalsign/mgo/bson"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 )
 
 // Product struct
@@ -25,7 +25,28 @@ type Product struct {
 func GetProducts(c *gin.Context) {
 	var products []Product
 
-	span, _ := stdopentracing.StartSpanFromContext(c, "get_products")
+	ctx, _ := stdopentracing.GlobalTracer().Extract(
+		stdopentracing.HTTPHeaders,
+		stdopentracing.HTTPHeadersCarrier(c.Request.Header))
+	// // iSpan, _ := c.Get("span")
+	// // span, found := iSpan.(stdopentracing.Span)
+	// // if !(span != nil && found) == false {
+	// // 	c.AbortWithStatus(http.StatusInternalServerError)
+	// // }
+
+	//	spanCtx := tracer.Extract
+
+	fmt.Println(ctx)
+
+	// span := opentracing.StartSpan(c.Request.URL.Path,
+	// 	ext.RPCServerOption(ctx))
+
+	textspan := stdopentracing.ChildOf(ctx)
+	fmt.Println(textspan)
+
+	span := stdopentracing.StartSpan("Accessing DB", stdopentracing.ChildOf(ctx))
+	span.SetTag("database access", "access")
+
 	defer span.Finish()
 
 	span.LogFields(
