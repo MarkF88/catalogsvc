@@ -10,9 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"encoding/base64"
 	"encoding/json"
-	//"github.com/buger/jsonparser"
 )
 
 var (
@@ -27,8 +25,8 @@ var (
 
 var res map[string]interface{}
 
-func getSecret() {
-	secretName := "catalogdb"
+func getSecret() (string, string){
+	secretName := "catalog/MongoDB"
 	region := "us-west-2"
 
 	sess, err := session.NewSession(&aws.Config{
@@ -38,7 +36,6 @@ func getSecret() {
 	if err != nil {
 		logger.Errorf("Error from getSecret is %s", err.Error())
 	}
-
 
 	//Create a Secrets Manager client
 	svc := secretsmanager.New(sess)
@@ -79,43 +76,31 @@ func getSecret() {
 			// Message from an error.
 			fmt.Println(err.Error())
 		}
-		return
+		return err.Error()
 	}
 
 	// Decrypts secret using the associated KMS CMK.
 	// Depending on whether the secret is a string or binary, one of these fields will be populated.
-	var secretString, decodedBinarySecret string
+	var secretString string
 	if result.SecretString != nil {
 		secretString = *result.SecretString
-	} else {
-		decodedBinarySecretBytes := make([]byte, base64.StdEncoding.DecodedLen(len(result.SecretBinary)))
-		len, err := base64.StdEncoding.Decode(decodedBinarySecretBytes, result.SecretBinary)
-		if err != nil {
-			fmt.Println("Base64 Decode Error:", err)
-			return
-		}
-		decodedBinarySecret = string(decodedBinarySecretBytes[:len])
 	}
-
-	fmt.Println("bs", decodedBinarySecret)
 
 	bytes := []byte(secretString)
 
 	json.Unmarshal([]byte(bytes), &res)
 
-	os.Setenv("CATALOG_DB_PASSWORD_AWS", res["password"].(string))
+	dbUser := res["username"].(string)
+	dbPass := res["password"].(string)
 	
-	return
+	return dbUser, dbPass
 }
 
 // ConnectDB accepts name of database and collection as a string
 func ConnectDB(dbName string, collectionName string, logger *logrus.Logger) *mgo.Session {
 
 	// Retrieve Secret from AWS Secrets Manager
-	getSecret()	
-
-	dbUsername := os.Getenv("CATALOG_DB_USERNAME")
-	dbSecret := os.Getenv("CATALOG_DB_PASSWORD_AWS")
+	dbUsername, dbSecret := getSecret()
 
 	// Get ENV variable or set to default value
 	dbIP := GetEnv("CATALOG_DB_HOST", "0.0.0.0")
