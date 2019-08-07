@@ -24,12 +24,26 @@ type Product struct {
 	Tags             []string      `json:"tags"`
 }
 
+// Flag to indicate an "error" should occur
+var throwError = false
+
 // GetProducts accepts context as input and returns JSON with all the products
 func GetProducts(c *gin.Context) {
 	var products []Product
 
 	span, _ := stdopentracing.StartSpanFromContext(c, "get_products")
 	defer span.Finish()
+
+	if throwError {
+		throwError = false
+		logger.Infof("insert error")
+		ext.Error.Set(span, true) // Tag the span as errored
+		span.LogEventWithPayload("GET product error", message)
+		c.JSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": message})
+		return
+	} else {
+		throwError = true
+	}
 
 	span.LogFields(
 		log.String("event", "string-format"),
