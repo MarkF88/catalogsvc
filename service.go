@@ -36,10 +36,10 @@ func GetProducts(c *gin.Context) {
 
 	if throwError {
 		throwError = false
+		message := "Product deliberate error"
 		logger.Infof("insert error")
 		ext.Error.Set(span, true) // Tag the span as errored
-		span.LogEventWithPayload("GET product error", message)
-		c.JSON(http.StatusNotFound, gin.H{"status": http.StatusNotFound, "message": message})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusNotFound, "message": message})
 		return
 	} else {
 		throwError = true
